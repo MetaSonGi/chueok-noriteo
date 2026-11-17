@@ -86,6 +86,19 @@ body[data-era=trad] .games .n{font-weight:700}
 .games .new{display:inline-block;font-family:"Jua",sans-serif;font-size:.68rem;margin-left:5px;padding:1px 6px;border-radius:999px;background:#F0727F;color:#fff;vertical-align:3px;letter-spacing:.03em}
 .games li:not(.off){transition:transform .15s}.games li:not(.off):active{transform:scale(.98)}
 .diff .chip{font-size:.9rem;padding:6px 11px}
+.rec-link{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:11px 14px;border-radius:14px;text-decoration:none;color:var(--accent-ink);background:var(--accent);box-shadow:0 3px 0 var(--accent-sh);font-family:var(--display),"Jua",sans-serif;font-size:1.08rem}
+.rec-link:active{transform:translateY(2px);box-shadow:0 1px 0 var(--accent-sh)}
+.rank-sheet{margin-top:12px;border-color:var(--accent)}
+.rank-list{list-style:none;margin:8px 0 0;padding:0}
+.rank-list li{display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px dashed color-mix(in srgb,var(--ink) 25%,transparent)}
+.rank-list li:first-child{border-top:0}.rank-list li.me{background:color-mix(in srgb,var(--accent) 22%,transparent);border-radius:10px}
+.rank-list .rk{width:28px;text-align:center;font-family:"Jua",sans-serif}.rank-list .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rec-sum{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
+.rec-sum div{background:color-mix(in srgb,var(--accent) 14%,transparent);border-radius:14px;padding:10px 6px;text-align:center}
+.rec-sum b{display:block;font-family:var(--display),"Jua",sans-serif;font-size:1.6rem;font-weight:400}.rec-sum small{font-size:.8rem;opacity:.7}.rec-sum span{font-size:.8rem;color:var(--dim)}
+.badges{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;margin-top:10px}
+.badge{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 2px;border-radius:12px;background:rgba(127,127,127,.12);font-size:1.4rem;filter:grayscale(1);opacity:.55;text-align:center}
+.badge.on{filter:none;opacity:1;background:color-mix(in srgb,var(--accent) 18%,transparent)}.badge small{font-size:.62rem;line-height:1.2;color:var(--dim)}
 .games .soon{flex:0 0 auto;font-size:.8rem;color:var(--dim)}
 .games li.off .n{opacity:.7}
 /* biseok */
@@ -238,6 +251,7 @@ function renderHub(){
   document.getElementById('hub').innerHTML=`
     <h1>추억 놀이터</h1>
     <p class="lede">시대를 고르고, 그때 그 놀이를 해 보세요.</p>
+    <a class="rec-link" href="#records">🏆 기록장 · 랭킹 <span>›</span></a>
     <div class="tl" role="tablist" aria-label="시대">${HUB.map((e,i)=>`<button role="tab" aria-selected="${i===hubEra}" data-i="${i}">${e.tab}<small>${e.years}</small></button>`).join('')}</div>
     <div class="era-head"><h2>${E.name}</h2><p>${E.line}${n?` · 지금 할 수 있는 놀이 ${n}개`:''}</p></div>
     <ul class="games">${E.games.map(([nm,d,id,tag])=>`<li class="${id?'':'off'}"><span class="ic" aria-hidden="true">${ICON[nm]||'🎲'}</span><div class="t"><div class="n">${nm}${tag?`<span class="tag">${tag}</span>`:''}${NEW.has(id)?'<span class="new">NEW</span>':''}</div><div class="d">${d}</div></div>${id?`<button class="go" data-go="${id}">하기</button>`:'<span class="soon">준비 중</span>'}</li>`).join('')}</ul>`;
@@ -346,9 +360,9 @@ function finish(outcome,why){
   K.later(()=>{
     S.phase='result'; btn.disabled=false;
     if(outcome==='hit'){ saveBest(S.stage+1);
-      if(S.stage===STAGES.length-1){ S.phase='win'; const nx=ERAS[eraIdx+1]; M.show('장군!', nx?`${era().name} 정복. 다음은 ${nx.name}!`:'모든 시대를 통틀어 최고예요'); btn.textContent='한 판 더'; return; }
+      if(S.stage===STAGES.length-1){ REC.done('biseok',1,STAGES.length); S.phase='win'; const nx=ERAS[eraIdx+1]; M.show('장군!', nx?`${era().name} 정복. 다음은 ${nx.name}!`:'모든 시대를 통틀어 최고예요'); btn.textContent='한 판 더'; return; }
       M.show('쓰러뜨렸다!',`${S.stage+2}단계 ${STAGES[S.stage+1].name}(으)로`); btn.textContent='다음 단계로';
-    } else { S.lives--; hud(); btn.disabled=false; btn.textContent=S.lives>0?'다시 던지기':'처음부터 다시';
+    } else { S.lives--; hud(); if(S.lives<=0) REC.done('biseok',1,S.stage); btn.disabled=false; btn.textContent=S.lives>0?'다시 던지기':'처음부터 다시';
       M.show(S.lives>0?why:'다 죽었다!', S.lives>0?`남은 기회 ${S.lives}번`:`${S.stage+1}단계에서 끝났어요`); }
   }, outcome==='hit'?650:250);
 }
@@ -524,7 +538,7 @@ function scrape(p,prev,dtms){
 }
 function breakIt(p){ S.phase='broken'; S.broken=true; for(let i=0;i<4;i++) addCrack(cx+(Math.random()-.5)*sc,cy+(Math.random()-.5)*sc,W*.45);
   tone(140,.3,{type:'square',vol:.12,to:60}); buzz([40,30,60]); M.show('깨졌다!','다시 해 볼까요?'); $('again').textContent='다시 하기'; }
-function win(){ S.phase='win'; S.samples.forEach(s=>s.done=true); const b=+store.get(bestKey())||0; const rec=!b||S.t<b; if(rec) store.set(bestKey(),S.t.toFixed(2));
+function win(){ S.phase='win'; S.samples.forEach(s=>s.done=true); const b=+store.get(bestKey())||0; const rec=!b||S.t<b; if(rec) store.set(bestKey(),S.t.toFixed(2)); REC.done('dalgona',1,Math.round(S.t*100),SH[shIdx].id);
   [523,659,784,1047].forEach((f,i)=>tone(f,.25,{type:'triangle',vol:.15,at:(ac()?ac().currentTime:0)+i*.09}));
   M.show('뽑았다!',`${S.t.toFixed(1)}초${rec?' · 새 기록':''}`); $('again').textContent='하나 더'; hud(); buzz(40); }
 let down=false;
@@ -692,7 +706,7 @@ function startMatch(){
     else K.later(()=>{ S.phase='result'; M.show(S.result.why, `이번엔 ${nm(1-S.atk)} 차례`); hud(); },500);
   }
   function roundWon(){ const w=S.atk; S.score[w]++; hud();
-    if(S.score[w]>=WIN){ S.phase='end'; M.show(`${nm(w)} 승리!`, mode==='solo'?(w===0?`${LEVELS[level].name}를 이겼어요`:'다음엔 꼭 이겨요'):`딱지 ${WIN}장을 땄어요`);
+    if(S.score[w]>=WIN){ if(mode==='solo') REC.win('ttakji',level,w===0); S.phase='end'; M.show(`${nm(w)} 승리!`, mode==='solo'?(w===0?`${LEVELS[level].name}를 이겼어요`:'다음엔 꼭 이겨요'):`딱지 ${WIN}장을 땄어요`);
       tone(523,.3,{type:'triangle',vol:.15}); hud(); btn.disabled=false; q('#tip').innerHTML='<button class="btn ghost" id="remake" style="margin:0">딱지 바꾸기</button>';
       q('#remake').addEventListener('click',screenMode); return; }
     S.phase='result'; M.show('넘어갔다!',`${nm(w)} 한 판 땄어요`); hud(); }
@@ -785,7 +799,7 @@ function figDone(){
   M.show(FIG[S.fig].name+' 완성!',`+${bonus}점 · 다음은 ${FIG[S.fig+1].name}`); btn.disabled=false; btn.textContent='다음 모양';
 }
 function over(t){ S.phase='over'; saveBest(); M.show(t,`${S.fig+1}번째 모양에서 끝 · ${S.score}점`); btn.disabled=false; btn.textContent='다시 하기'; }
-function saveBest(){ if(S.score>(+store.get('sil-best')||0)) store.set('sil-best',S.score); }
+function saveBest(){ REC.done('sil',1,S.score); if(S.score>(+store.get('sil-best')||0)) store.set('sil-best',S.score); }
 K.on(btn,'click',()=>{ ac(); if(S.phase==='ready'||S.phase==='over'||S.phase==='win') newGame(); else if(S.phase==='done'){ if(S.retry) S.retry=false; else S.fig++; startFig(); } });
 K.on(cv,'pointerdown',e=>{ e.preventDefault(); const p=ptr(e,cv); let best=-1,bd=C.W*.09;
   for(let i=0;i<12;i++){const q=pegPos(i), d=Math.hypot(q.x-p.x,q.y-p.y); if(d<bd){bd=d;best=i;}} if(best>=0) tapPeg(best); });
@@ -866,7 +880,7 @@ function hit(lane){
 }
 function finish(fell){ S.phase=fell?'fell':'done'; const total=S.chart.notes.length, acc=Math.round((S.perfect+S.good*.5)/total*100);
   const grade=fell?'':acc>=90?'명인':acc>=75?'상쇠':acc>=55?'잽이':'풋내기';
-  if(S.score>(+store.get('paengi-best')||0)) store.set('paengi-best',S.score);
+  if(S.score>(+store.get('paengi-best')||0)) store.set('paengi-best',S.score); REC.done('paengi',1,S.score);
   M.show(fell?'팽이가 쓰러졌다':`${grade}!`, `점수 ${S.score} · 정확도 ${acc}% · 최대 ${S.maxCombo} 연속`);
   $('start').hidden=false; $('start').textContent='다시 치기'; hud(); }
 K.on($('start'),'click',start);
@@ -984,7 +998,7 @@ function doMove(from){
   else if(joined){ flash('업었다!',''); tone(620,.12,{type:'triangle',vol:.12}); }
   else tone(440,.08,{type:'triangle',vol:.1});
   if(me.every(p=>p===FIN)){ S.over=true; S.phase='over'; const won=t===0;
-    if(won) store.set('yut-wins-'+D.v,(+store.get('yut-wins-'+D.v)||0)+1);
+    REC.win('yut',D.v,won); if(won) store.set('yut-wins-'+D.v,(+store.get('yut-wins-'+D.v)||0)+1);
     M.show(won?'이겼다! 🎉':'졌어요 🥲',won?`${DIFF[D.v].n} 컴퓨터를 이겼어요`:'한 판 더 할까요?'); hud(); return; }
   S.sel=0; hud(); afterAct();
 }
@@ -1089,7 +1103,7 @@ function kick(x){
     S.pop={t:ms||(perfect?'딱!':''),k:1}; if(ms) buzz(30);
   } else { S.face=0; noise(.05,{freq:600,vol:.12}); }
 }
-function over(){ S.phase='over'; S.face=-1; const b=+store.get(bestKey())||0; const rec=S.n>b; if(rec) store.set(bestKey(),S.n);
+function over(){ S.phase='over'; S.face=-1; const b=+store.get(bestKey())||0; const rec=S.n>b; if(rec) store.set(bestKey(),S.n); REC.done('jegi',D.v,S.n);
   M.show(rec&&S.n?'새 기록! 🎉':'툭, 떨어졌다',`${S.n}번 찼어요`); btn.textContent='다시 하기'; noise(.2,{freq:300,vol:.3,type:'lowpass'}); hud(); }
 K.on(btn,'click',()=>kick());
 K.on(cv,'pointerdown',e=>{ e.preventDefault(); const p=ptr(e,cv); kick(p.x/C.W); });
@@ -1160,7 +1174,7 @@ function result(kind){ const a=S.arrow; a.state=kind; let pts=0, txt;
   if(pts){ [523,659,784].slice(0,pts).forEach((f,i)=>tone(f,.15,{type:'triangle',vol:.13,at:(AC?AC.currentTime:0)+i*.07})); buzz(25); S.stuck.push({x:a.x,y:a.y,ang:Math.atan2(a.vy,a.vx)}); }
   else noise(.08,{freq:kind==='bounce'?3000:400,vol:.2});
   const g=S; K.later(()=>{ if(S!==g) return; S.arrow=null;
-    if(S.left<=0){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score);
+    if(S.left<=0){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score); REC.done('tuho',D.v,S.score);
       M.show(rec?'새 기록! 🎉':'한 판 끝',`${N}개 중 ${S.score}점 · 화면을 누르면 새 판`); hud(); }
     else { S.phase='aim'; if((N-S.left)%3===0) nextJar(); else S.wind=(Math.random()*2-1)*CFG[D.v].wind; } },kind==='bounce'?1100:850); }
 function bodyHalf(y){ if(y<MOUTH+.02) return 0; const t=(y-MOUTH)/(GY-MOUTH); return .03+Math.sin(Math.min(1,t*1.2)*Math.PI*.85)*.05; }
@@ -1239,7 +1253,7 @@ function judge(d){ S.judged=true; const cf=CFG[D.v]; let t;
   const pts=Math.round(S.h*250), peek=S.h>WALL; S.score+=pts+(peek?50:0); if(peek){ S.peeks++; t+=' · 담 너머 보너스!'; }
   S.judge={t,k:1}; hud();
   if(S.E<.1) over('널에서 미끄러졌다 😵'); else if(S.jumps>=N) over('다 뛰었다! 🎉'); else launch(1); }
-function over(t){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score);
+function over(t){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score); REC.done('neol',D.v,S.score);
   M.show(rec?'새 기록! 🎉':t,`${S.score}점 · 담 너머 구경 ${S.peeks}번`); btn.textContent='다시 하기'; hud(); }
 function tap(){ if(S.phase!=='play'){ start(); return; } ac(); if(S.air===0&&!S.judged&&S.tap===null&&S.t>S.T*.5) S.tap=S.t; }
 K.on(btn,'click',tap); K.on(cv,'pointerdown',e=>{e.preventDefault(); tap();});
@@ -1403,7 +1417,7 @@ function hud(){
 }
 const tossY=()=>{ const k=clamp(S.t/S.T,0,1); return HY-PEAK*4*k*(1-k); };
 function fail(t){ if(S.phase==='fail'||S.phase==='over') return; S.phase='fail'; S.lives--; S.face=-1; M.show(t,S.lives>0?`남은 기회 ${S.lives}번`:''); noise(.15,{freq:350,vol:.3,type:'lowpass'}); buzz(60); hud();
-  const g=S; K.later(()=>{ if(S!==g) return; S.face=1; if(S.lives<=0){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score); M.show(rec?'새 기록! 🎉':'공기 끝',`${S.score}년 모았어요`); hud(); } else startStage(S.si); },1100); }
+  const g=S; K.later(()=>{ if(S!==g) return; S.face=1; if(S.lives<=0){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.score>b; if(rec) store.set(bestKey(),S.score); REC.done('gonggi',D.v,S.score); M.show(rec?'새 기록! 🎉':'공기 끝',`${S.score}년 모았어요`); hud(); } else startStage(S.si); },1100); }
 function clear(){ S.face=2; [523,659,784].forEach((f,i)=>tone(f,.15,{type:'triangle',vol:.12,at:(AC?AC.currentTime:0)+i*.07}));
   if(S.si<4){ M.show(`${S.si+1}단 통과!`,''); const g=S; S.phase='wait'; K.later(()=>{ if(S===g){ S.face=1; startStage(S.si+1); } },800); } }
 function tap(p){ ac(); const u=C.W, x=p.x/u, y=p.y/u, cf=CFG[D.v];
@@ -1486,7 +1500,7 @@ function land(){ const f=S.fly, cf=CFG[D.v]; let d=f.d, t;
   else { t=f.perfect?`딱! ${d}자 ✨`:`${d}자`; S.face=2; tone(660,.12,{type:'triangle',vol:.12}); }
   finishRound(d,t); }
 function finishRound(d,t){ S.total+=d; S.res.push(d); S.r++; S.phase='result'; hud(); M.show(t,S.r<ROUNDS?'':`합계 ${S.total}자`);
-  const g=S; K.later(()=>{ if(S!==g) return; if(S.r>=ROUNDS){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.total>b; if(rec) store.set(bestKey(),S.total);
+  const g=S; K.later(()=>{ if(S!==g) return; if(S.r>=ROUNDS){ S.phase='over'; const b=+store.get(bestKey())||0, rec=S.total>b; if(rec) store.set(bestKey(),S.total); REC.done('jachigi',D.v,S.total);
       const title=S.total>=110?'자치기 대장 👑':S.total>=70?'골목 장사 💪':S.total>=40?'제법인데? 😎':'다음엔 더 멀리!';
       M.show(rec?'새 기록! 🎉':title,`5번 합계 ${S.total}자`); btn.textContent='다시 하기'; btn.disabled=false; } else nextRound(); },1500); }
 K.on(btn,'click',act); K.on(cv,'pointerdown',e=>{ e.preventDefault(); if(S.phase!=='fly'&&S.phase!=='result') act(); });
@@ -1551,7 +1565,7 @@ function hud(){ const st=k=>+store.get('gonu-'+k+'-'+D.v)||0;
   $('tip').textContent=S.over?(two?'':`${DIFF[D.v].n} 전적 ${st('w')}승 ${st('l')}패 ${st('d')}무`):two?`${S.turn===1?'분홍':'파랑'} 차례 · ${S.n}/${LIMIT}수`:S.turn===1?`내 차례 · ${S.n}/${LIMIT}수`:'컴퓨터가 생각 중…'; }
 function end(winner,why){ S.over=true; let t;
   if(two) t=winner?`${winner===1?'분홍':'파랑'} 승리! 🎉`:'비겼다 🤝';
-  else { const k=winner===1?'w':winner===2?'l':'d'; store.set('gonu-'+k+'-'+D.v,(+store.get('gonu-'+k+'-'+D.v)||0)+1); t=winner===1?'이겼다! 🎉':winner===2?'졌어요 🥲':'비겼다 🤝'; }
+  else { REC.win('gonu',D.v,winner===1); const k=winner===1?'w':winner===2?'l':'d'; store.set('gonu-'+k+'-'+D.v,(+store.get('gonu-'+k+'-'+D.v)||0)+1); t=winner===1?'이겼다! 🎉':winner===2?'졌어요 🥲':'비겼다 🤝'; }
   M.show(t,why); if(winner===1||two&&winner) [523,659,784].forEach((f,i)=>tone(f,.15,{type:'triangle',vol:.12,at:(AC?AC.currentTime:0)+i*.08})); hud(); }
 function doMove(a,e){ const p=S.b[a]; S.anim={a,e,k:0,p}; S.b[e]=p; S.b[a]=0; S.last=e; S.n++; S.first=false; tone(p===1?520:390,.08,{type:'triangle',vol:.12});
   S.turn=3-p; if(!moves(S.b,S.turn).length){ end(p,'상대가 꼼짝 못 해요'); return; } if(S.n>=LIMIT){ end(0,`${LIMIT}수가 지났어요`); return; }
@@ -1592,6 +1606,90 @@ K.loop(dt=>{
   const e=S.b.indexOf(0); if(!S.over&&(two||S.turn===1)&&e>=0){ ctx.strokeStyle='rgba(43,35,32,.35)'; ctx.setLineDash([4,5]); ctx.lineWidth=2; ctx.beginPath(); ctx.arc(NODES[e][0]*u,NODES[e][1]*u,u*.065,0,7); ctx.stroke(); ctx.setLineDash([]); }
 });
 modeChips(); newGame();
+}};
+// ===== 기록·랭킹 =====
+// 온라인 랭킹: Supabase 프로젝트 URL과 anon public 키를 넣으면 켜져요. 비워 두면 내 기록만 보여요.
+const RANK={url:'',key:''};
+const GMETA={
+ biseok:{n:'비석치기',u:'단계',nod:true}, paengi:{n:'팽이치기',u:'점',nod:true}, dalgona:{n:'달고나 뽑기',u:'초',low:true,scale:100,nod:true,subs:['circle','tri','star','heart','umbrella'],subn:['동그라미','세모','별','하트','우산']},
+ sil:{n:'실뜨기',u:'점',nod:true}, ttakji:{n:'딱지치기',u:'승',wins:true},
+ yut:{n:'윷놀이',u:'승',wins:true}, jegi:{n:'제기차기',u:'번'}, tuho:{n:'투호',u:'점'}, neol:{n:'널뛰기',u:'점'},
+ yeon:{n:'연날리기',u:'바람',idle:true}, gonggi:{n:'공기놀이',u:'년'}, jachigi:{n:'자치기',u:'자'}, gonu:{n:'고누놀이',u:'승',wins:true}};
+const LEGACY={sil:()=>store.get('sil-best'),paengi:()=>store.get('paengi-best'),jegi:d=>store.get('jegi-best-'+d),tuho:d=>store.get('tuho-best-'+d),neol:d=>store.get('neol-best-'+d),
+ gonggi:d=>store.get('gonggi-best-'+d),jachigi:d=>store.get('jachigi-best-'+d),yut:d=>store.get('yut-wins-'+d),gonu:d=>store.get('gonu-w-'+d)};
+const REC={
+  key:(g,d,sub)=>'rec-'+(sub?g+'-'+sub:g)+'-'+d,
+  best(g,d,sub){ const m=GMETA[g]; let v=store.get(REC.key(g,d,sub)); if(v===null&&!sub&&LEGACY[g]) v=LEGACY[g](d); return v===null?null:+v; },
+  plays(g){ return +store.get('rec-plays-'+g)||0; },
+  bump(g){ store.set('rec-plays-'+g,REC.plays(g)+1); store.set('rec-total',(+store.get('rec-total')||0)+1); },
+  win(g,d,won){ REC.bump(g); if(won){ const k=REC.key(g,d); store.set(k,(REC.best(g,d)||0)+1); } },
+  done(g,d,score,sub){ const m=GMETA[g]; REC.bump(g); const b=REC.best(g,d,sub); const better=b===null||(m.low?score<b:score>b);
+    if(better) store.set(REC.key(g,d,sub),score);
+    if(RANK.url&&score>0) setTimeout(()=>rankSheet(g,d,score,sub),900); return better; },
+  show(g,v){ const m=GMETA[g]; return m.scale?(v/m.scale).toFixed(2):fmtK(v); },
+};
+async function rankApi(path,opt={}){ const r=await fetch(RANK.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:RANK.key,Authorization:'Bearer '+RANK.key,'Content-Type':'application/json',...(opt.headers||{})}});
+  if(!r.ok&&r.status!==206) throw new Error(r.status); return r; }
+const rankGame=(g,sub)=>sub?g+'-'+sub:g;
+async function rankTop(g,d,sub,n=10){ const m=GMETA[g]; const r=await rankApi(`scores?select=name,score,created_at&game=eq.${encodeURIComponent(rankGame(g,sub))}&diff=eq.${d}&order=score.${m.low?'asc':'desc'},created_at.asc&limit=${n}`); return r.json(); }
+async function rankPos(g,d,score,sub){ const m=GMETA[g]; const r=await rankApi(`scores?select=id&game=eq.${encodeURIComponent(rankGame(g,sub))}&diff=eq.${d}&score=${m.low?'lt':'gt'}.${score}`,{method:'HEAD',headers:{Prefer:'count=exact',Range:'0-0'}});
+  const cr=r.headers.get('content-range')||'*/0'; return (+cr.split('/')[1]||0)+1; }
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+function rankList(rows,g,me){ const md=['🥇','🥈','🥉'];
+  return rows.length?`<ol class="rank-list">${rows.map((r,i)=>`<li class="${me&&r.name===me.name&&r.score===me.score?'me':''}"><span class="rk">${md[i]||i+1}</span><span class="nm">${esc(r.name)}</span><b>${REC.show(g,r.score)}${GMETA[g].u}</b></li>`).join('')}</ol>`:'<p class="dim" style="margin:6px 0 0">아직 아무도 없어요. 첫 번째 주인공이 되어 보세요!</p>'; }
+function rankSheet(g,d,score,sub){
+  const stage=document.getElementById('stage'); if(!stage||location.hash.slice(1)!==g) return;
+  stage.querySelector('.rank-sheet')?.remove();
+  const m=GMETA[g], el=document.createElement('div'); el.className='rank-sheet panel';
+  el.innerHTML=`<div class="stat" style="margin-top:0"><b class="disp" style="font-size:1.2rem">🏆 랭킹에 올릴까요?</b><span>${m.nod?'':DIFF[d].e+' '}${REC.show(g,score)}${m.u}</span></div>
+    <div class="row" style="margin-top:8px"><input type="text" maxlength="12" placeholder="닉네임 (12자까지)" value="${esc(store.get('rank-name')||'')}" style="margin:0;flex:1"><button class="chip go-rank" style="background:var(--accent);color:var(--accent-ink)">등록</button><button class="chip x">닫기</button></div>
+    <div class="out"></div>`;
+  stage.appendChild(el); el.scrollIntoView({behavior:'smooth',block:'nearest'});
+  el.querySelector('.x').onclick=()=>el.remove();
+  el.querySelector('.go-rank').onclick=async()=>{ const name=el.querySelector('input').value.trim().slice(0,12); if(!name){ el.querySelector('input').focus(); return; }
+    store.set('rank-name',name); const out=el.querySelector('.out'); out.innerHTML='<p class="dim">등록하는 중…</p>'; el.querySelector('.row').style.display='none';
+    try{ await rankApi('scores',{method:'POST',headers:{Prefer:'return=minimal'},body:JSON.stringify({game:rankGame(g,sub),diff:d,name,score})});
+      const [pos,top]=await Promise.all([rankPos(g,d,score,sub),rankTop(g,d,sub,5)]);
+      out.innerHTML=`<p style="margin:8px 0 0"><b>전체 ${pos}위!</b> ${pos<=3?'🎉':''}</p>${rankList(top,g,{name,score})}`;
+    }catch(e){ out.innerHTML='<p class="dim">지금은 등록할 수 없어요. 잠시 뒤에 다시 해 주세요.</p>'; el.querySelector('.row').style.display=''; } };
+}
+const BADGES=[
+ {e:'🌱',n:'첫 놀이',t:s=>s.total>=1},{e:'🎒',n:'놀이 5종 체험',t:s=>s.tried>=5},{e:'🧭',n:'놀이 10종 체험',t:s=>s.tried>=10},
+ {e:'🗺️',n:'모든 시대 맛보기',t:s=>s.eras>=5},{e:'🔥',n:'50판 놀았다',t:s=>s.total>=50},{e:'💯',n:'100판 놀았다',t:s=>s.total>=100},
+ {e:'🪶',n:'제기 30번',t:()=>[0,1,2].some(d=>(REC.best('jegi',d)||0)>=30)},{e:'🏺',n:'투호 15점',t:()=>[0,1,2].some(d=>(REC.best('tuho',d)||0)>=15)},
+ {e:'🎲',n:'윷놀이 어려움 승리',t:()=>(REC.best('yut',2)||0)>=1},{e:'🍯',n:'우산 뽑기 성공',t:()=>REC.best('dalgona',1,'umbrella')!==null||store.get('dalgona-best-umbrella')!==null}];
+function recStats(){ const ids=Object.keys(GAMES).filter(id=>GMETA[id]); const tried=ids.filter(id=>REC.plays(id)>0||[0,1,2].some(d=>REC.best(id,d)!==null));
+  const eras=new Set(tried.map(id=>GAMES[id].era)); return {total:+store.get('rec-total')||0,tried:tried.length,eras:eras.size,triedIds:tried}; }
+GAMES.records={title:'기록장',get era(){ return HUB[hubEra].id; },mount(root,K){
+  let tab='me', gSel=store.get('rank-game')||'jegi', dSel=1;
+  root.innerHTML=`<div class="panel"><div class="chips" id="tabs" style="margin-top:0"></div><div id="body"></div></div>`;
+  const $=id=>root.querySelector('#'+id);
+  function tabs(){ $('tabs').innerHTML=[['me','📒 내 기록'],['rank','🏆 전체 랭킹']].map(([k,n])=>`<button class="chip" data-t="${k}" aria-pressed="${tab===k}">${n}</button>`).join(''); }
+  function me(){ const s=recStats(), all=HUB.reduce((a,e)=>a+e.games.length,0);
+    const rows=Object.entries(GMETA).filter(([id])=>GAMES[id]).map(([id,m])=>{ let v;
+      if(m.idle){ let o=null; try{o=JSON.parse(store.get('yeon-save-1')||store.get('yeon-save-0')||store.get('yeon-save-2')||'null');}catch(e){} v=o?`누적 🍃 ${fmtK(o.tot||0)}`:'-'; }
+      else if(m.subs){ v=m.subs.map((sb,i)=>{ const b=REC.best(id,1,sb)??(store.get('dalgona-best-'+sb)!==null?Math.round(+store.get('dalgona-best-'+sb)*100):null); return b===null?null:`${m.subn[i]} ${REC.show(id,b)}초`; }).filter(Boolean).join(' · ')||'-'; }
+      else if(m.nod){ const b=REC.best(id,1); v=b===null?'-':`최고 ${REC.show(id,b)}${m.u}`; }
+      else v=[0,1,2].map(d=>{ const b=REC.best(id,d); return `${DIFF[d].e} ${b===null?'-':REC.show(id,b)+(m.wins?'승':'')}`; }).join('  ');
+      return `<li><span class="ic">${ICON[m.n]||'🎲'}</span><div class="t"><div class="n">${m.n}</div><div class="d">${v}</div></div><span class="soon">${REC.plays(id)}판</span></li>`; }).join('');
+    $('body').innerHTML=`<div class="rec-sum"><div><b>${s.total}</b><span>놀았던 판</span></div><div><b>${s.tried}<small>/${all}</small></b><span>해 본 놀이</span></div><div><b>${BADGES.filter(b=>b.t(s)).length}<small>/${BADGES.length}</small></b><span>배지</span></div></div>
+      <div class="badges">${BADGES.map(b=>{const on=b.t(s); return `<span class="badge ${on?'on':''}" title="${b.n}">${on?b.e:'🔒'}<small>${b.n}</small></span>`;}).join('')}</div>
+      <ul class="games" style="margin-top:12px">${rows}</ul><p class="foot" style="opacity:.8">기록은 이 기기의 브라우저에 저장돼요.</p>`; }
+  async function rank(){ const ids=Object.entries(GMETA).filter(([id,m])=>GAMES[id]&&!m.wins&&!m.idle).map(([id])=>id); if(!ids.includes(gSel)) gSel=ids[0];
+    const m=GMETA[gSel];
+    $('body').innerHTML=!RANK.url?`<p style="margin:12px 0 0">온라인 랭킹은 곧 열려요! 🛠️<br><span class="dim">지금은 내 기록 탭에서 최고 기록을 볼 수 있어요.</span></p>`:
+      `<div class="chips" id="gs">${ids.map(id=>`<button class="chip" data-g="${id}" aria-pressed="${id===gSel}">${ICON[GMETA[id].n]||''} ${GMETA[id].n}</button>`).join('')}</div>
+       ${m.nod?'':`<div class="chips" id="ds">${DIFF.map((x,i)=>`<button class="chip" data-d="${i}" aria-pressed="${i===dSel}">${x.e} ${x.n}</button>`).join('')}</div>`}
+       ${m.subs?`<div class="chips" id="ss">${m.subs.map((sb,i)=>`<button class="chip" data-s="${sb}" aria-pressed="${sb===(store.get('rank-sub')||'circle')}">${m.subn[i]}</button>`).join('')}</div>`:''}
+       <div id="list"><p class="dim">불러오는 중…</p></div>`;
+    if(!RANK.url) return; const sub=m.subs?(store.get('rank-sub')||'circle'):undefined;
+    try{ const rows=await rankTop(gSel,m.nod?1:dSel,sub,10); if(K.alive&&$('list')) $('list').innerHTML=rankList(rows,gSel); }catch(e){ if($('list')) $('list').innerHTML='<p class="dim">랭킹을 불러오지 못했어요.</p>'; } }
+  const draw=()=>{ tabs(); tab==='me'?me():rank(); };
+  K.on(root,'click',e=>{ const t=e.target.closest('[data-t]'); if(t){ tab=t.dataset.t; draw(); return; }
+    const g=e.target.closest('[data-g]'); if(g){ gSel=g.dataset.g; store.set('rank-game',gSel); draw(); return; }
+    const d=e.target.closest('#ds [data-d]'); if(d){ dSel=+d.dataset.d; draw(); return; }
+    const sb=e.target.closest('[data-s]'); if(sb){ store.set('rank-sub',sb.dataset.s); draw(); } });
+  draw();
 }};
 window.addEventListener('hashchange',route);
 route();
