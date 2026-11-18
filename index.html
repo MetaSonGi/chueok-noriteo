@@ -88,6 +88,8 @@ body[data-era=trad] .games .n{font-weight:700}
 .diff .chip{font-size:.9rem;padding:6px 11px}
 .rec-link{display:flex;justify-content:space-between;align-items:center;margin-top:12px;padding:11px 14px;border-radius:14px;text-decoration:none;color:var(--accent-ink);background:var(--accent);box-shadow:0 3px 0 var(--accent-sh);font-family:var(--display),"Jua",sans-serif;font-size:1.08rem}
 .rec-link:active{transform:translateY(2px);box-shadow:0 1px 0 var(--accent-sh)}
+.rank-sel{display:block;width:100%;margin-top:10px;padding:10px 12px;border-radius:12px;border:2px solid var(--ink);background:transparent;color:var(--ink);font:inherit;font-size:1rem}
+.rank-sel option,.rank-sel optgroup{color:#222;background:#fff}
 .rank-sheet{margin-top:12px;border-color:var(--accent)}
 .rank-list{list-style:none;margin:8px 0 0;padding:0}
 .rank-list li{display:flex;align-items:center;gap:10px;padding:8px 4px;border-top:1px dashed color-mix(in srgb,var(--ink) 25%,transparent)}
@@ -1617,7 +1619,7 @@ modeChips(); newGame();
 }};
 // ===== 기록·랭킹 =====
 // 온라인 랭킹: Supabase 프로젝트 URL과 anon public 키를 넣으면 켜져요. 비워 두면 내 기록만 보여요.
-const RANK={url:'',key:''};
+const RANK={url:'https://czoisqqnflkpdpqznffm.supabase.co',key:'sb_publishable_1FaSAOjjgJEhHz5PGwDgvg_LqcWG9GL'};
 const GMETA={
  biseok:{n:'비석치기',u:'단계',nod:true}, paengi:{n:'팽이치기',u:'점',nod:true}, dalgona:{n:'달고나 뽑기',u:'초',low:true,scale:100,nod:true,subs:['circle','tri','star','heart','umbrella'],subn:['동그라미','세모','별','하트','우산']},
  sil:{n:'실뜨기',u:'점',nod:true}, ttakji:{n:'딱지치기',u:'승',wins:true},
@@ -1636,7 +1638,7 @@ const REC={
     if(RANK.url&&score>0) setTimeout(()=>rankSheet(g,d,score,sub),900); return better; },
   show(g,v){ const m=GMETA[g]; return m.scale?(v/m.scale).toFixed(2):fmtK(v); },
 };
-async function rankApi(path,opt={}){ const r=await fetch(RANK.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:RANK.key,Authorization:'Bearer '+RANK.key,'Content-Type':'application/json',...(opt.headers||{})}});
+async function rankApi(path,opt={}){ const r=await fetch(RANK.url.replace(/\/$/,'')+'/rest/v1/'+path,{...opt,headers:{apikey:RANK.key,...(RANK.key.startsWith('sb_')?{}:{Authorization:'Bearer '+RANK.key}),'Content-Type':'application/json',...(opt.headers||{})}});
   if(!r.ok&&r.status!==206) throw new Error(r.status); return r; }
 const rankGame=(g,sub)=>sub?g+'-'+sub:g;
 async function rankTop(g,d,sub,n=10){ const m=GMETA[g]; const r=await rankApi(`scores?select=name,score,created_at&game=eq.${encodeURIComponent(rankGame(g,sub))}&diff=eq.${d}&order=score.${m.low?'asc':'desc'},created_at.asc&limit=${n}`); return r.json(); }
@@ -1686,10 +1688,11 @@ GAMES.records={title:'기록장',get era(){ return HUB[hubEra].id; },mount(root,
   async function rank(){ const ids=Object.entries(GMETA).filter(([id,m])=>GAMES[id]&&!m.wins&&!m.idle).map(([id])=>id); if(!ids.includes(gSel)) gSel=ids[0];
     const m=GMETA[gSel];
     $('body').innerHTML=!RANK.url?`<p style="margin:12px 0 0">온라인 랭킹은 곧 열려요! 🛠️<br><span class="dim">지금은 내 기록 탭에서 최고 기록을 볼 수 있어요.</span></p>`:
-      `<div class="chips" id="gs">${ids.map(id=>`<button class="chip" data-g="${id}" aria-pressed="${id===gSel}">${ICON[GMETA[id].n]||''} ${GMETA[id].n}</button>`).join('')}</div>
+      `<select id="gs" class="rank-sel" aria-label="놀이 고르기">${HUB.map(e=>`<optgroup label="${e.tab}">${e.games.filter(g=>ids.includes(g[2])).map(g=>`<option value="${g[2]}" ${g[2]===gSel?'selected':''}>${ICON[g[0]]||''} ${g[0]}</option>`).join('')}</optgroup>`).join('')}</select>
        ${m.nod?'':`<div class="chips" id="ds">${DIFF.map((x,i)=>`<button class="chip" data-d="${i}" aria-pressed="${i===dSel}">${x.e} ${x.n}</button>`).join('')}</div>`}
        ${m.subs?`<div class="chips" id="ss">${m.subs.map((sb,i)=>`<button class="chip" data-s="${sb}" aria-pressed="${sb===(store.get('rank-sub')||'circle')}">${m.subn[i]}</button>`).join('')}</div>`:''}
        <div id="list"><p class="dim">불러오는 중…</p></div>`;
+    const gs=$('gs'); if(gs) gs.onchange=()=>{ gSel=gs.value; store.set('rank-game',gSel); draw(); };
     if(!RANK.url) return; const sub=m.subs?(store.get('rank-sub')||'circle'):undefined;
     try{ const rows=await rankTop(gSel,m.nod?1:dSel,sub,10); if(K.alive&&$('list')) $('list').innerHTML=rankList(rows,gSel); }catch(e){ if($('list')) $('list').innerHTML='<p class="dim">랭킹을 불러오지 못했어요.</p>'; } }
   const draw=()=>{ tabs(); tab==='me'?me():rank(); };
